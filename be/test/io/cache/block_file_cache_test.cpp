@@ -7898,4 +7898,87 @@ TEST_F(BlockFileCacheTest, test_reset_capacity) {
     FileCacheFactory::instance()->_capacity = 0;
 }
 
+TEST_F(BlockFileCacheTest, cached_remote_file_reader_async) {
+    config::enable_file_cache_write_back_async = true;
+    if (doris::io::CachedRemoteFileReader::_write_back_thread_pool == nullptr) {
+        static_cast<void>(ThreadPoolBuilder("FileCacheWriteBackThreadPool")
+                                  .set_min_threads(1)
+                                  .set_max_threads(1)
+                                  .build(&doris::io::CachedRemoteFileReader::_write_back_thread_pool));
+    }
+    if (fs::exists(cache_base_path)) {
+        fs::remove_all(cache_base_path);
+    }
+    fs::create_directories(cache_base_path);
+    io::FileCacheSettings settings;
+    settings.query_queue_size = 6291456;
+    settings.query_queue_elements = 6;
+    settings.index_queue_size = 1048576;
+    settings.index_queue_elements = 1;
+    settings.disposable_queue_size = 1048576;
+    settings.disposable_queue_elements = 1;
+    settings.capacity = 8388608;
+    settings.max_file_block_size = 1048576;
+    settings.max_query_cache_size = 0;
+    io::CacheContext context;
+    ReadStatistics rstats;
+    context.stats = &rstats;
+    context.cache_type = io::FileCacheType::NORMAL;
+    ASSERT_TRUE(FileCacheFactory::instance()->create_file_cache(cache_base_path, settings).ok());
+    FileReaderSPtr local_reader;
+    ASSERT_TRUE(global_local_filesystem()->open_file(tmp_file, &local_reader));
+    io::FileReaderOptions opts;
+    opts.cache_type = io::cache_type_from_string("file_block_cache");
+    opts.is_doris_table = true;
+    CachedRemoteFileReader reader(local_reader, opts);
+    {
+        std::string buffer;
+        buffer.resize(1);
+        IOContext io_ctx;
+        RuntimeProfile profile("file_cache_test");
+        FileCacheProfileReporter reporter(&profile);
+        FileCacheStatistics stats;
+        io_ctx.file_cache_stats = &stats;
+        size_t bytes_read {0};
+        ASSERT_TRUE(reader.read_at(10_mb, Slice(buffer.data(), buffer.size()), &bytes_read, &io_ctx)
+                            .ok());
+        EXPECT_EQ(std::string(1, '0'), buffer);
+        reporter.update(&stats);
+    }
+    EXPECT_TRUE(reader.close().ok());
+    EXPECT_TRUE(reader.closed());
+    {
+        auto key = io::BlockFileCache::hash("tmp_file");
+        auto cache = FileCacheFactory::instance()->get_by_path(key);
+        auto holder = cache->get_or_set(key, 9_mb, 1024_kb + 1, context);
+        auto blocks = fromHolder(holder);
+        ASSERT_EQ(blocks.size(), 2);
+        assert_range(1, blocks[0], io::FileBlock::Range(9_mb, 10_mb - 1),
+                     io::FileBlock::State::DOWNLOADING);
+        assert_range(2, blocks[1], io::FileBlock::Range(10_mb, 10_mb),
+                     io::FileBlock::State::DOWNLOADING);
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+    {
+        auto key = io::BlockFileCache::hash("tmp_file");
+        auto cache = FileCacheFactory::instance()->get_by_path(key);
+        auto holder = cache->get_or_set(key, 9_mb, 1024_kb + 1, context);
+        auto blocks = fromHolder(holder);
+        ASSERT_EQ(blocks.size(), 2);
+        assert_range(1, blocks[0], io::FileBlock::Range(9_mb, 10_mb - 1),
+                     io::FileBlock::State::DOWNLOADED);
+        assert_range(2, blocks[1], io::FileBlock::Range(10_mb, 10_mb),
+                     io::FileBlock::State::DOWNLOADED);
+    }
+    if (fs::exists(cache_base_path)) {
+        fs::remove_all(cache_base_path);
+    }
+    FileCacheFactory::instance()->_caches.clear();
+    FileCacheFactory::instance()->_path_to_cache.clear();
+    FileCacheFactory::instance()->_capacity = 0;
+    SAFE_SHUTDOWN(doris::io::CachedRemoteFileReader::_write_back_thread_pool);
+    doris::io::CachedRemoteFileReader::_write_back_thread_pool.reset(nullptr);
+    config::enable_file_cache_write_back_async = false;
+}
+
 } // namespace doris::io

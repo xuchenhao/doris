@@ -46,6 +46,7 @@
 #include "io/cache/block_file_cache_downloader.h"
 #include "io/cache/block_file_cache_factory.h"
 #include "io/cache/fs_file_cache_storage.h"
+#include "io/cache/cached_remote_file_reader.h"
 #include "io/fs/file_meta_cache.h"
 #include "io/fs/local_file_reader.h"
 #include "olap/id_manager.h"
@@ -57,7 +58,6 @@
 #include "olap/schema_cache.h"
 #include "olap/segment_loader.h"
 #include "olap/storage_engine.h"
-#include "olap/storage_policy.h"
 #include "olap/tablet_column_object_pool.h"
 #include "olap/tablet_meta.h"
 #include "olap/tablet_schema_cache.h"
@@ -278,6 +278,12 @@ Status ExecEnv::_init(const std::vector<StorePath>& store_paths,
                               .set_min_threads(config::min_s3_file_system_thread_num)
                               .set_max_threads(config::max_s3_file_system_thread_num)
                               .build(&_s3_file_system_thread_pool));
+    if (config::enable_file_cache_write_back_async) {
+        static_cast<void>(ThreadPoolBuilder("FileCacheWriteBackThreadPool")
+                                  .set_min_threads(cast_set<int>(config::num_file_cache_write_back_thread_pool_min_thread))
+                                  .set_max_threads(cast_set<int>(config::num_file_cache_write_back_thread_pool_max_thread))
+                                  .build(&io::CachedRemoteFileReader::_write_back_thread_pool));
+    }
     RETURN_IF_ERROR(_init_mem_env());
 
     // NOTE: runtime query statistics mgr could be visited by query and daemon thread
@@ -540,21 +546,12 @@ Status ExecEnv::_init_mem_env() {
     } else {
         fd_number = static_cast<uint64_t>(l.rlim_cur);
     }
-
-    int64_t segment_cache_capacity = 0;
-    if (config::is_cloud_mode()) {
-        // when in cloud mode, segment cache hold no system FD
-        // thus the FD num limit makes no sense
-        // cloud mode use FDCache to control FD
-        segment_cache_capacity = UINT32_MAX;
-    } else {
-        // SegmentLoader caches segments in rowset granularity. So the size of
-        // opened files will greater than segment_cache_capacity.
-        segment_cache_capacity = config::segment_cache_capacity;
-        int64_t segment_cache_fd_limit = fd_number / 100 * config::segment_cache_fd_percentage;
-        if (segment_cache_capacity < 0 || segment_cache_capacity > segment_cache_fd_limit) {
-            segment_cache_capacity = segment_cache_fd_limit;
-        }
+    // SegmentLoader caches segments in rowset granularity. So the size of
+    // opened files will greater than segment_cache_capacity.
+    int64_t segment_cache_capacity = config::segment_cache_capacity;
+    int64_t segment_cache_fd_limit = fd_number / 100 * config::segment_cache_fd_percentage;
+    if (segment_cache_capacity < 0 || segment_cache_capacity > segment_cache_fd_limit) {
+        segment_cache_capacity = segment_cache_fd_limit;
     }
 
     int64_t segment_cache_mem_limit =
@@ -882,7 +879,6 @@ void ExecEnv::destroy() {
 
     _s_tracking_memory = false;
 
-    clear_storage_resource();
     LOG(INFO) << "Doris exec envorinment is destoried.";
 }
 
