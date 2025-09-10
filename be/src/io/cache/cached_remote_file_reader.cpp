@@ -365,7 +365,7 @@ Status CachedRemoteFileReader::read_at_impl(size_t offset, Slice result, size_t*
         bool is_inverted_index = io_ctx->is_inverted_index;
         /*
          * Capturing variable holder is necessary to ensure its destructor is called after the async
-         * file_cache_write_back thread completes
+         * file_cache_fill thread completes
          */
         auto task = [this, empty_start, buffer_size, is_inverted_index, _empty_blocks = std::move(empty_blocks),
                      _buffer = std::move(buffer_moved), _holder = std::move(holder)]() {
