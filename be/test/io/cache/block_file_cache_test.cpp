@@ -7900,11 +7900,11 @@ TEST_F(BlockFileCacheTest, test_reset_capacity) {
 
 TEST_F(BlockFileCacheTest, cached_remote_file_reader_async) {
     config::enable_file_cache_write_back_async = true;
-    if (doris::io::CachedRemoteFileReader::_write_back_thread_pool == nullptr) {
+    if (doris::io::CachedRemoteFileReader::_file_cache_fill_thread_pool == nullptr) {
         static_cast<void>(ThreadPoolBuilder("FileCacheWriteBackThreadPool")
                                   .set_min_threads(1)
                                   .set_max_threads(1)
-                                  .build(&doris::io::CachedRemoteFileReader::_write_back_thread_pool));
+                                  .build(&doris::io::CachedRemoteFileReader::_file_cache_fill_thread_pool));
     }
     if (fs::exists(cache_base_path)) {
         fs::remove_all(cache_base_path);
@@ -7976,8 +7976,8 @@ TEST_F(BlockFileCacheTest, cached_remote_file_reader_async) {
     FileCacheFactory::instance()->_caches.clear();
     FileCacheFactory::instance()->_path_to_cache.clear();
     FileCacheFactory::instance()->_capacity = 0;
-    SAFE_SHUTDOWN(doris::io::CachedRemoteFileReader::_write_back_thread_pool);
-    doris::io::CachedRemoteFileReader::_write_back_thread_pool.reset(nullptr);
+    SAFE_SHUTDOWN(doris::io::CachedRemoteFileReader::_file_cache_fill_thread_pool);
+    doris::io::CachedRemoteFileReader::_file_cache_fill_thread_pool.reset(nullptr);
     config::enable_file_cache_write_back_async = false;
 }
 

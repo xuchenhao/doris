@@ -55,6 +55,8 @@
 namespace doris::io {
 #include "common/compile_check_begin.h"
 
+std::atomic<size_t> BlockFileCache::file_cache_fill_buffer_size{0};
+
 BlockFileCache::BlockFileCache(const std::string& cache_base_path,
                                const FileCacheSettings& cache_settings)
         : _cache_base_path(cache_base_path),
@@ -186,6 +188,9 @@ BlockFileCache::BlockFileCache(const std::string& cache_base_path,
 
     _evict_by_try_release = std::make_shared<bvar::Adder<size_t>>(
             _cache_base_path.c_str(), "file_cache_evict_by_try_release");
+
+    _file_cache_fill_buffer_size_metrics = std::make_shared<bvar::Adder<size_t>>(
+            _cache_base_path.c_str(), "file_cache_fill_buffer_size", 0);
 
     _num_read_blocks = std::make_shared<bvar::Adder<size_t>>(_cache_base_path.c_str(),
                                                              "file_cache_num_read_blocks");
@@ -1897,6 +1902,8 @@ void BlockFileCache::run_background_monitor() {
                     _disposable_queue.get_capacity(cache_lock));
             _cur_disposable_queue_element_count_metrics->set_value(
                     _disposable_queue.get_elements_num(cache_lock));
+            _file_cache_fill_buffer_size_metrics->setvalue(
+                    file_cache_fill_buffer_size);
 
             if (_num_read_blocks->get_value() > 0) {
                 _hit_ratio->set_value((double)_num_hit_blocks->get_value() /
@@ -2323,6 +2330,8 @@ std::map<std::string, double> BlockFileCache::get_stats() {
     stats["total_read_counts"] = (double)_num_read_blocks->get_value();
     stats["need_evict_cache_in_advance"] = (double)_need_evict_cache_in_advance;
     stats["disk_resource_limit_mode"] = (double)_disk_resource_limit_mode;
+
+    stats["file_cache_fill_buffer_size"] = _file_cache_fill_buffer_size_metrics->get_value();
 
     return stats;
 }

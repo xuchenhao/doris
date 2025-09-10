@@ -55,7 +55,7 @@ public:
 
     static std::pair<size_t, size_t> s_align_size(size_t offset, size_t size, size_t length);
 
-    static std::unique_ptr<ThreadPool> _write_back_thread_pool;
+    static std::unique_ptr<ThreadPool> _file_cache_fill_thread_pool;
 
 protected:
     Status read_at_impl(size_t offset, Slice result, size_t* bytes_read,
@@ -72,6 +72,8 @@ private:
 
     void _update_stats(const ReadStatistics& stats, FileCacheStatistics* state,
                        bool is_inverted_index) const;
+
+
 };
 
 } // namespace doris::io

@@ -278,11 +278,11 @@ Status ExecEnv::_init(const std::vector<StorePath>& store_paths,
                               .set_min_threads(config::min_s3_file_system_thread_num)
                               .set_max_threads(config::max_s3_file_system_thread_num)
                               .build(&_s3_file_system_thread_pool));
-    if (config::enable_file_cache_write_back_async) {
-        static_cast<void>(ThreadPoolBuilder("FileCacheWriteBackThreadPool")
-                                  .set_min_threads(cast_set<int>(config::num_file_cache_write_back_thread_pool_min_thread))
-                                  .set_max_threads(cast_set<int>(config::num_file_cache_write_back_thread_pool_max_thread))
-                                  .build(&io::CachedRemoteFileReader::_write_back_thread_pool));
+    if (config::enable_file_cache_fill_async) {
+        static_cast<void>(ThreadPoolBuilder("FileCacheFillThreadPool")
+                                  .set_min_threads(cast_set<int>(config::num_file_cache_fill_thread_pool_min_thread))
+                                  .set_max_threads(cast_set<int>(config::num_file_cache_fill_thread_pool_max_thread))
+                                  .build(&io::CachedRemoteFileReader::_file_cache_fill_thread_pool));
     }
     RETURN_IF_ERROR(_init_mem_env());
 
