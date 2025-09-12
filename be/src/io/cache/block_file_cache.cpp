@@ -191,6 +191,8 @@ BlockFileCache::BlockFileCache(const std::string& cache_base_path,
 
     _file_cache_fill_buffer_size_metrics = std::make_shared<bvar::Adder<size_t>>(
             _cache_base_path.c_str(), "file_cache_fill_buffer_size", 0);
+    _file_cache_fill_buffer_max_size_metrics = std::make_shared<bvar::Adder<size_t>>(
+            _cache_base_path.c_str(), "file_cache_fill_max_buffer_size", 0);
 
     _num_read_blocks = std::make_shared<bvar::Adder<size_t>>(_cache_base_path.c_str(),
                                                              "file_cache_num_read_blocks");
@@ -2332,6 +2334,7 @@ std::map<std::string, double> BlockFileCache::get_stats() {
     stats["disk_resource_limit_mode"] = (double)_disk_resource_limit_mode;
 
     stats["file_cache_fill_buffer_size"] = _file_cache_fill_buffer_size_metrics->get_value();
+    stats["file_cache_fill_buffer_max_size"] = config::file_cache_fill_buffer_max_size;
 
     return stats;
 }
