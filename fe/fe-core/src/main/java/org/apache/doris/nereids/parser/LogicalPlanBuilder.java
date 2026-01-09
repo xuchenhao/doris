@@ -8924,8 +8924,8 @@ public class LogicalPlanBuilder extends DorisParserBaseVisitor<Object> {
 
                 long startTime = System.nanoTime();
 
-                boolean fileCacheAdmission = FileCacheAdmissionManager.getInstance().isAllowed(userIdentity, catalog,
-                        database, table, reason);
+                boolean fileCacheAdmission = FileCacheAdmissionManager.getInstance().isAllowedTableLevel(userIdentity,
+                        catalog, database, table, reason);
 
                 long endTime = System.nanoTime();
                 double durationMs = (double) (endTime - startTime) / 1_000_000;

@@ -17,6 +17,7 @@
 
 package org.apache.doris.datasource;
 
+import org.apache.doris.catalog.Type;
 import org.apache.doris.common.Config;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -221,11 +222,13 @@ public class FileCacheAdmissionManager {
         private final Set<String> excludeCatalogRules = new HashSet<>();
         private final Map<String, Set<String>> excludeDatabaseRules = new HashMap<>();
         private final Map<String, Set<String>> excludeTableRules = new HashMap<>();
+        private final Map<String, List<String>> excludePartitionRules = new HashMap<>();
 
         private Boolean includeGlobal = false;
         private final Set<String> includeCatalogRules = new HashSet<>();
         private final Map<String, Set<String>> includeDatabaseRules = new HashMap<>();
         private final Map<String, Set<String>> includeTableRules = new HashMap<>();
+        private final Map<String, List<String>> includePartitionRules = new HashMap<>();
 
         static List<String> reasons = new ArrayList<>(Arrays.asList(
                 "common catalog-level blacklist rule",      // 0
@@ -245,7 +248,7 @@ public class FileCacheAdmissionManager {
                 "default rule"                              // 14
         ));
 
-        public boolean isAllowed(String userIdentity, String catalog, String database, String table,
+        public boolean isAllowedTableLevel(String userIdentity, String catalog, String database, String table,
                                  AtomicReference<String> reason) {
 
             String catalogDatabase = catalog + "." + database;
@@ -281,15 +284,13 @@ public class FileCacheAdmissionManager {
                 return true;
             }
 
-            // TODO: Implementing partition-level rules
-
             reason.set(reasons.get(14));
             logAdmission(Config.file_cache_admission_control_default_allow,
                     userIdentity, catalog, database, table, reason.get());
             return Config.file_cache_admission_control_default_allow;
         }
 
-        public boolean isAllowed(ConcurrentRuleCollection userCollection, String userIdentity, String catalog,
+        public boolean isAllowedTableLevel(ConcurrentRuleCollection userCollection, String userIdentity, String catalog,
                                  String database, String table, AtomicReference<String> reason) {
 
             String catalogDatabase = catalog + "." + database;
@@ -365,12 +366,27 @@ public class FileCacheAdmissionManager {
                 return true;
             }
 
-            // TODO: Implementing partition-level rules
-
             reason.set(reasons.get(14));
             logAdmission(Config.file_cache_admission_control_default_allow,
                     userIdentity, catalog, database, table, reason.get());
             return Config.file_cache_admission_control_default_allow;
+        }
+
+        public boolean isAllowedPartitionLevel(String userIdentity, String catalogDatabaseTable,
+                                               List<String> pathPartitionKeys, List<Type> pathPartitionKeyTypes,
+                                               List<String> partitionValuesFromPath,
+                                               boolean tableLevelAdmissionResult) {
+
+            return tableLevelAdmissionResult;
+        }
+
+        public boolean isAllowedPartitionLevel(ConcurrentRuleCollection userCollection, String userIdentity,
+                                               String catalogDatabaseTable, List<String> pathPartitionKeys,
+                                               List<Type> pathPartitionKeyTypes,
+                                               List<String> partitionValuesFromPath,
+                                               boolean tableLevelAdmissionResult) {
+
+            return tableLevelAdmissionResult;
         }
 
         private boolean containsKeyValue(Map<String, Set<String>> map, String key, String value) {
@@ -440,6 +456,8 @@ public class FileCacheAdmissionManager {
                     ? excludeDatabaseRules : includeDatabaseRules;
             Map<String, Set<String>> tableRules = (rulePattern.getRuleType() == RuleType.EXCLUDE)
                     ? excludeTableRules : includeTableRules;
+            Map<String, List<String>> partitionRules = (rulePattern.getRuleType() == RuleType.EXCLUDE)
+                    ? excludePartitionRules : includePartitionRules;
 
             switch (ruleLevel) {
                 case GLOBAL:
@@ -462,7 +480,10 @@ public class FileCacheAdmissionManager {
                             .add(catalogDatabase);
                     break;
                 case PARTITION:
-                    // TODO: Implementing partition-level rules
+                    String catalogDatabaseTable = rulePattern.getCatalog() + "." + rulePattern.getDatabase() + "."
+                            + rulePattern.getTable();
+                    partitionRules.computeIfAbsent(catalogDatabaseTable, k -> new ArrayList<>())
+                            .add(rulePattern.partitionPattern);
                     break;
                 default:
                     break;
@@ -517,7 +538,7 @@ public class FileCacheAdmissionManager {
             }
         }
 
-        public boolean isAllowed(String userIdentity, String catalog, String database, String table,
+        public boolean isAllowedTableLevel(String userIdentity, String catalog, String database, String table,
                                  AtomicReference<String> reason) {
             if (userIdentity.isEmpty()) {
                 reason.set(otherReasons.get(0));
@@ -535,9 +556,33 @@ public class FileCacheAdmissionManager {
             int index = getIndex(firstChar);
             ConcurrentRuleCollection collection = maps.get(index).get(userIdentity);
             if (collection == null) {
-                return commonCollection.isAllowed(userIdentity, catalog, database, table, reason);
+                return commonCollection.isAllowedTableLevel(userIdentity, catalog, database, table, reason);
             } else {
-                return commonCollection.isAllowed(collection, userIdentity, catalog, database, table, reason);
+                return commonCollection.isAllowedTableLevel(collection, userIdentity, catalog, database, table, reason);
+            }
+        }
+
+        public boolean isAllowedPartitionLevel(String userIdentity, String catalogDatabaseTable,
+                                               List<String> pathPartitionKeys, List<Type> pathPartitionKeyTypes,
+                                               List<String> partitionValuesFromPath,
+                                               boolean tableLevelAdmissionResult) {
+            if (userIdentity.isEmpty()) {
+                return tableLevelAdmissionResult;
+            }
+
+            char firstChar = userIdentity.charAt(0);
+            if (!Character.isAlphabetic(firstChar)) {
+                return tableLevelAdmissionResult;
+            }
+
+            int index = getIndex(firstChar);
+            ConcurrentRuleCollection collection = maps.get(index).get(userIdentity);
+            if (collection == null) {
+                return commonCollection.isAllowedPartitionLevel(userIdentity, catalogDatabaseTable,
+                        pathPartitionKeys, pathPartitionKeyTypes, partitionValuesFromPath, tableLevelAdmissionResult);
+            } else {
+                return commonCollection.isAllowedPartitionLevel(collection, userIdentity, catalogDatabaseTable,
+                        pathPartitionKeys, pathPartitionKeyTypes, partitionValuesFromPath, tableLevelAdmissionResult);
             }
         }
 
@@ -580,10 +625,21 @@ public class FileCacheAdmissionManager {
         ruleManager.initialize(rules);
     }
 
-    public boolean isAllowed(String userIdentity, String catalog, String database, String table,
+    public boolean isAllowedTableLevel(String userIdentity, String catalog, String database, String table,
                              AtomicReference<String> reason) {
         readLock.lock();
-        boolean isAllowed = ruleManager.isAllowed(userIdentity, catalog, database, table, reason);
+        boolean isAllowed = ruleManager.isAllowedTableLevel(userIdentity, catalog, database, table, reason);
+        readLock.unlock();
+
+        return isAllowed;
+    }
+
+    public boolean isAllowedPartitionLevel(String userIdentity, String catalogDatabaseTable,
+                                           List<String> pathPartitionKeys, List<Type> pathPartitionKeyTypes,
+                                           List<String> partitionValuesFromPath, boolean tableLevelAdmissionResult) {
+        readLock.lock();
+        boolean isAllowed = ruleManager.isAllowedPartitionLevel(userIdentity, catalogDatabaseTable, pathPartitionKeys,
+                pathPartitionKeyTypes, partitionValuesFromPath, tableLevelAdmissionResult);
         readLock.unlock();
 
         return isAllowed;

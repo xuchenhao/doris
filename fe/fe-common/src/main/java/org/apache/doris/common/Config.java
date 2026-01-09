@@ -3756,6 +3756,12 @@ public class Config extends ConfigBase {
     })
     public static boolean enable_file_cache_admission_control = false;
 
+    @ConfField(mutable = false, description = {
+        "缓存准入控制的粒度：true=分区级，false=表级",
+        "Granularity level of admission control: true=partition level, false=table level"
+    })
+    public static boolean file_cache_admission_control_partition_level = false;
+
     @ConfField(mutable = true, description = {
         "存储准入规则的JSON文件路径",
         "JSON file path for storing admission rules"

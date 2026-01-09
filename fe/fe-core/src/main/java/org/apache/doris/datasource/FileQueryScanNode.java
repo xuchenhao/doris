@@ -28,6 +28,7 @@ import org.apache.doris.catalog.FsBroker;
 import org.apache.doris.catalog.FunctionGenTable;
 import org.apache.doris.catalog.HdfsResource;
 import org.apache.doris.catalog.TableIf;
+import org.apache.doris.catalog.Type;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.Config;
 import org.apache.doris.common.NotImplementedException;
@@ -67,6 +68,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -309,31 +311,41 @@ public abstract class FileQueryScanNode extends FileScanNode {
 
         int numBackends = backendPolicy.numBackends();
         List<String> pathPartitionKeys = getPathPartitionKeys();
+        List<Type> pathPartitionKeyTypes = new ArrayList<>();
 
-        Boolean fileCacheAdmission = true;
+        Boolean tableLevelAdmissionResult = true;
+        String userIdentity = new String();
+        String catalogDatabaseTable = new String();
         if (Config.enable_file_cache_admission_control) {
             TableIf tableIf = getTargetTable();
             if (tableIf instanceof ExternalTable) {
                 ExternalTable externalTableIf = (ExternalTable) tableIf;
 
-                String userIdentity = ConnectContext.get().getUserIdentity();
+                userIdentity = ConnectContext.get().getUserIdentity();
                 String catalog = externalTableIf.getCatalog().getName();
                 String database = externalTableIf.getDatabase().getFullName();
                 String table = externalTableIf.getName();
+
+                catalogDatabaseTable = catalog + "." + database + "." + table;
 
                 AtomicReference<String> reason = new AtomicReference<>("");
 
                 long startTime = System.nanoTime();
 
-                fileCacheAdmission = FileCacheAdmissionManager.getInstance().isAllowed(userIdentity, catalog,
-                        database, table, reason);
+                tableLevelAdmissionResult = FileCacheAdmissionManager.getInstance().isAllowedTableLevel(
+                        userIdentity, catalog, database, table, reason);
 
                 long endTime = System.nanoTime();
                 double durationMs = (double) (endTime - startTime) / 1_000_000;
 
                 LOG.debug("File cache admission control cost {} ms", String.format("%.6f", durationMs));
 
-                addFileCacheAdmissionLog(userIdentity, fileCacheAdmission, reason.get(), durationMs);
+                addFileCacheAdmissionLog(userIdentity, tableLevelAdmissionResult, reason.get(), durationMs);
+
+                for (String pathPartitionKey : pathPartitionKeys) {
+                    pathPartitionKeyTypes.add(tableIf.getColumn(pathPartitionKey).getType());
+                }
+                LOG.info("pathPartitionKeyTypes:" + pathPartitionKeyTypes);
             } else {
                 LOG.info("Skip file cache admission control for non-external table: {}.{}",
                         tableIf.getDatabase().getFullName(), tableIf.getName());
@@ -344,7 +356,8 @@ public abstract class FileQueryScanNode extends FileScanNode {
             // File splits are generated lazily, and fetched by backends while scanning.
             // Only provide the unique ID of split source to backend.
             splitAssignment = new SplitAssignment(backendPolicy, this, this::splitToScanRange,
-                    locationProperties, pathPartitionKeys, fileCacheAdmission);
+                    locationProperties, pathPartitionKeys, pathPartitionKeyTypes, tableLevelAdmissionResult,
+                    userIdentity, catalogDatabaseTable);
             splitAssignment.init();
             if (executor != null) {
                 executor.getSummaryProfile().setGetSplitsFinishTime();
@@ -399,7 +412,7 @@ public abstract class FileQueryScanNode extends FileScanNode {
                 Collection<Split> splits = assignment.get(backend);
                 for (Split split : splits) {
                     scanRangeLocations.add(splitToScanRange(backend, locationProperties, split, pathPartitionKeys,
-                            fileCacheAdmission));
+                            pathPartitionKeyTypes, tableLevelAdmissionResult, userIdentity, catalogDatabaseTable));
                     totalFileSize += split.getLength();
                 }
                 scanBackendIds.add(backend.getId());
@@ -425,10 +438,14 @@ public abstract class FileQueryScanNode extends FileScanNode {
             Map<String, String> locationProperties,
             Split split,
             List<String> pathPartitionKeys,
-            Boolean fileCacheAdmission) throws UserException {
+            List<Type> pathPartitionKeyTypes,
+            Boolean fileCacheAdmission,
+            String userIdentity,
+            String catalogDatabaseTable) throws UserException {
         FileSplit fileSplit = (FileSplit) split;
         TScanRangeLocations curLocations = newLocations();
         // If fileSplit has partition values, use the values collected from hive partitions.
+        // Otherwise, use the values in file path.
         // Otherwise, use the values in file path.
         boolean isACID = false;
         if (fileSplit instanceof HiveSplit) {
@@ -445,7 +462,12 @@ public abstract class FileQueryScanNode extends FileScanNode {
         // set file format type, and the type might fall back to native format in setScanParams
         rangeDesc.setFormatType(getFileFormatType());
         setScanParams(rangeDesc, fileSplit);
-        rangeDesc.setFileCacheAdmission(fileCacheAdmission);
+
+        if (Config.file_cache_admission_control_partition_level) {
+            rangeDesc.setFileCacheAdmission(fileCacheAdmission);
+        } else {
+            rangeDesc.setFileCacheAdmission(fileCacheAdmission);
+        }
 
         curLocations.getScanRange().getExtScanRange().getFileScanRange().addToRanges(rangeDesc);
         TScanRangeLocation location = new TScanRangeLocation();

@@ -17,6 +17,7 @@
 
 package org.apache.doris.datasource;
 
+import org.apache.doris.catalog.Type;
 import org.apache.doris.common.UserException;
 import org.apache.doris.spi.Split;
 import org.apache.doris.system.Backend;
@@ -31,5 +32,8 @@ public interface SplitToScanRange {
             Map<String, String> locationProperties,
             Split split,
             List<String> pathPartitionKeys,
-            Boolean fileCacheAdmission) throws UserException;
+            List<Type> pathPartitionKeyTypes,
+            Boolean fileCacheAdmission,
+            String userIdentity,
+            String catalogDatabaseTable) throws UserException;
 }

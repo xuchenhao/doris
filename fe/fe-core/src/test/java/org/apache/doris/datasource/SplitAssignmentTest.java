@@ -17,6 +17,7 @@
 
 package org.apache.doris.datasource;
 
+import org.apache.doris.catalog.Type;
 import org.apache.doris.common.UserException;
 import org.apache.doris.spi.Split;
 import org.apache.doris.system.Backend;
@@ -65,11 +66,13 @@ public class SplitAssignmentTest {
     private SplitAssignment splitAssignment;
     private Map<String, String> locationProperties;
     private List<String> pathPartitionKeys;
+    private List<Type> pathPartitionKeyTypes;
 
     @BeforeEach
     void setUp() {
         locationProperties = new HashMap<>();
         pathPartitionKeys = new ArrayList<>();
+        pathPartitionKeyTypes = new ArrayList<>();
 
         splitAssignment = new SplitAssignment(
                 mockBackendPolicy,
@@ -77,7 +80,10 @@ public class SplitAssignmentTest {
                 mockSplitToScanRange,
                 locationProperties,
                 pathPartitionKeys,
-                true
+                pathPartitionKeyTypes,
+                true,
+                "",
+                ""
         );
     }
 
@@ -94,7 +100,7 @@ public class SplitAssignmentTest {
                 result = batch;
 
                 mockSplitToScanRange.getScanRange(mockBackend, locationProperties, mockSplit, pathPartitionKeys,
-                        true);
+                        pathPartitionKeyTypes, true, "", "");
                 result = mockScanRangeLocations;
             }
         };
@@ -130,7 +136,10 @@ public class SplitAssignmentTest {
                 mockSplitToScanRange,
                 locationProperties,
                 pathPartitionKeys,
-                true
+                pathPartitionKeyTypes,
+                true,
+                "",
+                ""
         );
 
         new MockUp<SplitAssignment>() {
@@ -200,7 +209,7 @@ public class SplitAssignmentTest {
                 result = batch;
 
                 mockSplitToScanRange.getScanRange(mockBackend, locationProperties, mockSplit, pathPartitionKeys,
-                        true);
+                        pathPartitionKeyTypes, true, "", "");
                 result = mockScanRangeLocations;
             }
         };
@@ -231,7 +240,7 @@ public class SplitAssignmentTest {
                 minTimes = 0;
 
                 mockSplitToScanRange.getScanRange(mockBackend, locationProperties, mockSplit, pathPartitionKeys,
-                        true);
+                        pathPartitionKeyTypes, true, "", "");
                 result = mockScanRangeLocations;
                 minTimes = 0;
             }
@@ -263,7 +272,7 @@ public class SplitAssignmentTest {
                 result = batch;
 
                 mockSplitToScanRange.getScanRange(mockBackend, locationProperties, mockSplit, pathPartitionKeys,
-                        true);
+                        pathPartitionKeyTypes, true, "", "");
                 result = mockScanRangeLocations;
             }
         };
@@ -294,7 +303,7 @@ public class SplitAssignmentTest {
                 result = batch;
 
                 mockSplitToScanRange.getScanRange(mockBackend, locationProperties, mockSplit, pathPartitionKeys,
-                        true);
+                        pathPartitionKeyTypes, true, "", "");
                 result = mockScanRangeLocations;
             }
         };
@@ -347,7 +356,7 @@ public class SplitAssignmentTest {
                 result = batch;
 
                 mockSplitToScanRange.getScanRange(mockBackend, locationProperties, mockSplit, pathPartitionKeys,
-                        true);
+                        pathPartitionKeyTypes, true, "", "");
                 result = mockScanRangeLocations;
             }
         };
@@ -392,7 +401,7 @@ public class SplitAssignmentTest {
                 result = batch;
 
                 mockSplitToScanRange.getScanRange(mockBackend, locationProperties, mockSplit, pathPartitionKeys,
-                        true);
+                        pathPartitionKeyTypes, true, "", "");
                 result = mockScanRangeLocations;
             }
         };
