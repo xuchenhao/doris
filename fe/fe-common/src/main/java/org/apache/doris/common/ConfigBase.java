@@ -89,7 +89,7 @@ public class ConfigBase {
             Set<String> newSets = Sets.newHashSet(newVal.split(","));
             if (!oldSets.removeAll(newSets)) {
                 throw new ConfigException("Config '" + field.getName()
-                    + "' must have intersection between the configss");
+                    + "' must have intersection between the configs");
             }
             setConfigField(field, newVal);
         }
