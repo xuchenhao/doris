@@ -329,7 +329,7 @@ public class ConfigBase {
                 f.set(null, sa);
                 break;
             default:
-                throw new Exception("unknown type: " + f.getType().getSimpleName());
+                throw new Exception("unknown  type: " + f.getType().getSimpleName());
         }
     }
 
