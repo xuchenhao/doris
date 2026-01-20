@@ -375,7 +375,7 @@ public class FileCacheAdmissionManager {
                 String status = admitted ? "admitted" : "denied";
 
                 String logMessage = String.format(
-                        "File cache request %s by %s, user_identity: %s, "
+                        "File cache request %s by  %s, user_identity: %s, "
                             + "catalog: %s, database: %s, table: %s",
                         status, reason, userIdentity, catalog, database, table);
 
