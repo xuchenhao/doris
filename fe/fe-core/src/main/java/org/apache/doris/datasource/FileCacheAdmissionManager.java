@@ -633,7 +633,7 @@ public class FileCacheAdmissionManager {
                 }
             });
 
-            LOG.info("Found {}  JSON files in admission rule directory: {}",
+            LOG.info("Found {} JSON files in admission rule directory: {}",
                     jsonFiles.length, Config.file_cache_admission_control_json_dir);
 
             List<AdmissionRule> allRules = new ArrayList<>();
