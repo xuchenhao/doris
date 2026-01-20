@@ -346,20 +346,20 @@ update_submodule() {
     local submodule_name=$2
     local archive_url=$3
 
-    set +e
-    cd "${DORIS_HOME}"
-    echo "Update ${submodule_name} submodule ..."
-    git submodule update --init --recursive "${submodule_path}"
-    exit_code=$?
-    if [[ "${exit_code}" -eq 0 ]]; then
-        cd "${submodule_path}"
-        submodule_commit_id=$(git rev-parse HEAD)
-        cd -
-        expect_submodule_commit_id=$(git ls-tree HEAD "${submodule_path}" | awk '{print $3}')
-        echo "Current commit ID of ${submodule_name} submodule: ${submodule_commit_id}, expected is ${expect_submodule_commit_id}"
-    fi
-    set -e
-    if [[ "${exit_code}" -ne 0 ]]; then
+#    set +e
+#    cd "${DORIS_HOME}"
+#    echo "Update ${submodule_name} submodule ..."
+#    git submodule update --init --recursive "${submodule_path}"
+#    exit_code=$?
+#    if [[ "${exit_code}" -eq 0 ]]; then
+#        cd "${submodule_path}"
+#        submodule_commit_id=$(git rev-parse HEAD)
+#        cd -
+#        expect_submodule_commit_id=$(git ls-tree HEAD "${submodule_path}" | awk '{print $3}')
+#        echo "Current commit ID of ${submodule_name} submodule: ${submodule_commit_id}, expected is ${expect_submodule_commit_id}"
+#    fi
+#    set -e
+#    if [[ "${exit_code}" -ne 0 ]]; then
         set +e
         # try to get submodule's current commit
         submodule_commit=$(git ls-tree HEAD "${submodule_path}" | awk '{print $3}')
@@ -374,7 +374,7 @@ update_submodule() {
 
         mkdir -p "${DORIS_HOME}/${submodule_path}"
         curl -L "${commit_specific_url}" | tar -xz -C "${DORIS_HOME}/${submodule_path}" --strip-components=1
-    fi
+#    fi
 }
 
 if [[ "${CLEAN}" -eq 1 && "${BUILD_BE}" -eq 0 && "${BUILD_FE}" -eq 0 && ${BUILD_CLOUD} -eq 0 ]]; then
@@ -600,10 +600,10 @@ FE_MODULES="$(
 
 # Clean and build Backend
 if [[ "${BUILD_BE}" -eq 1 ]]; then
-    update_submodule "contrib/apache-orc" "apache-orc" "https://github.com/apache/doris-thirdparty/archive/refs/heads/orc.tar.gz"
-    update_submodule "contrib/clucene" "clucene" "https://github.com/apache/doris-thirdparty/archive/refs/heads/clucene.tar.gz"
-    update_submodule "contrib/openblas" "openblas" "https://github.com/apache/doris-thirdparty/archive/refs/heads/openblas.tar.gz"
-    update_submodule "contrib/faiss" "faiss" "https://github.com/apache/doris-thirdparty/archive/refs/heads/faiss.tar.gz"
+#    update_submodule "contrib/apache-orc" "apache-orc" "https://github.com/apache/doris-thirdparty/archive/refs/heads/orc.tar.gz"
+#    update_submodule "contrib/clucene" "clucene" "https://github.com/apache/doris-thirdparty/archive/refs/heads/clucene.tar.gz"
+#    update_submodule "contrib/openblas" "openblas" "https://github.com/apache/doris-thirdparty/archive/refs/heads/openblas.tar.gz"
+#    update_submodule "contrib/faiss" "faiss" "https://github.com/apache/doris-thirdparty/archive/refs/heads/faiss.tar.gz"
     if [[ -e "${DORIS_HOME}/gensrc/build/gen_cpp/version.h" ]]; then
         rm -f "${DORIS_HOME}/gensrc/build/gen_cpp/version.h"
     fi

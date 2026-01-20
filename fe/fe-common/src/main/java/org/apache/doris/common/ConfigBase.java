@@ -260,6 +260,11 @@ public class ConfigBase {
         for (int i = 0; i < sa.length; i++) {
             sa[i] = sa[i].trim();
         }
+        if (Strings.isNullOrEmpty(confVal)) {
+            // if confVal is empty, confVal.split(",") will be [""]
+            // so reset it with an empty array
+            sa = new String[0];
+        }
 
         // set config field
         switch (f.getType().getSimpleName()) {
@@ -324,7 +329,7 @@ public class ConfigBase {
                 f.set(null, sa);
                 break;
             default:
-                throw new Exception("unknown  type: " + f.getType().getSimpleName());
+                throw new Exception("unknown type: " + f.getType().getSimpleName());
         }
     }
 
