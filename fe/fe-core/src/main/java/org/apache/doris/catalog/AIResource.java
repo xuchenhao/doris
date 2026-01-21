@@ -136,7 +136,7 @@ public class AIResource extends Resource {
         String lowerCaseType = type.name().toLowerCase();
         result.addRow(Lists.newArrayList(name, lowerCaseType, " id", String.valueOf(id)));
         readLock();
-        result.addRow(Lists.newArrayList(name, lowerCaseType, "version", String.valueOf(version)));
+        result.addRow(Lists.newArrayList(name, lowerCaseType, " version", String.valueOf(version)));
         for (Map.Entry<String, String> entry : properties.entrySet()) {
             if (entry.getKey().equals(AIProperties.API_KEY)) {
                 result.addRow(Lists.newArrayList(name, lowerCaseType, entry.getKey(), "******"));
