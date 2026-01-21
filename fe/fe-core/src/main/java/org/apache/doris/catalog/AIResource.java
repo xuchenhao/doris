@@ -170,7 +170,7 @@ public class AIResource extends Resource {
         try {
             tAIResource.setMaxRetries(Integer.parseInt(properties.get(AIProperties.MAX_RETRIES)));
         } catch (NumberFormatException e) {
-            throw new NumberFormatException("Failed to parse max_retries : "
+            throw new NumberFormatException("Failed to parse  max_retries : "
                                             + properties.get(AIProperties.MAX_RETRIES));
         }
         try {
