@@ -176,7 +176,7 @@ public class AIResource extends Resource {
         try {
             tAIResource.setRetryDelaySecond(Integer.parseInt(properties.get(AIProperties.RETRY_DELAY_SECOND)));
         } catch (NumberFormatException e) {
-            throw new NumberFormatException("Failed to parse retry_delay_second: "
+            throw new NumberFormatException("Failed to parse retry_delay_second : "
                                             + properties.get(AIProperties.RETRY_DELAY_SECOND));
         }
         try {
