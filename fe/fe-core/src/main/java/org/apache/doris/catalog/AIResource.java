@@ -158,7 +158,7 @@ public class AIResource extends Resource {
         try {
             tAIResource.setTemperature(Double.parseDouble(properties.get(AIProperties.TEMPERATURE)));
         } catch (NumberFormatException e) {
-            throw new NumberFormatException("Failed to parse temperature : "
+            throw new NumberFormatException("Failed to parse temperature  : "
                                             + properties.get(AIProperties.TEMPERATURE));
         }
         try {
