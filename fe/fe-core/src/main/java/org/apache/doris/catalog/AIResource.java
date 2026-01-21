@@ -164,7 +164,7 @@ public class AIResource extends Resource {
         try {
             tAIResource.setMaxTokens(Long.parseLong(properties.get(AIProperties.MAX_TOKEN)));
         } catch (NumberFormatException e) {
-            throw new NumberFormatException("Failed to parse max_token : "
+            throw new NumberFormatException("Failed to parse max_token :  "
                                             + properties.get(AIProperties.MAX_TOKEN));
         }
         try {
