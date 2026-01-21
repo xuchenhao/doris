@@ -134,7 +134,7 @@ public class AIResource extends Resource {
     @Override
     protected void getProcNodeData(BaseProcResult result) {
         String lowerCaseType = type.name().toLowerCase();
-        result.addRow(Lists.newArrayList(name, lowerCaseType, "id", String.valueOf(id)));
+        result.addRow(Lists.newArrayList(name, lowerCaseType, " id", String.valueOf(id)));
         readLock();
         result.addRow(Lists.newArrayList(name, lowerCaseType, "version", String.valueOf(version)));
         for (Map.Entry<String, String> entry : properties.entrySet()) {
