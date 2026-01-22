@@ -72,6 +72,12 @@ public:
     }
 
     Status rebuild_pool_with_min_max(int min_threads, int max_threads) {
+        if (_pool) {
+            _pool->shutdown();
+            _pool->wait();
+            _pool.reset();  // 确保智能指针释放
+        }
+
         return ThreadPoolBuilder(kDefaultPoolName)
                 .set_min_threads(min_threads)
                 .set_max_threads(max_threads)
