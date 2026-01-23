@@ -76,6 +76,7 @@ public:
             _pool->shutdown();
             _pool->wait();
             _pool.reset();  // 确保智能指针释放
+
         }
 
         return ThreadPoolBuilder(kDefaultPoolName)
