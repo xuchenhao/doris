@@ -72,13 +72,6 @@ public:
     }
 
     Status rebuild_pool_with_min_max(int min_threads, int max_threads) {
-        if (_pool) {
-            _pool->shutdown();
-            _pool->wait();
-            _pool.reset();  // 确保智能指针释放
-
-        }
-
         return ThreadPoolBuilder(kDefaultPoolName)
                 .set_min_threads(min_threads)
                 .set_max_threads(max_threads)
@@ -315,45 +308,65 @@ TEST_F(ThreadPoolTest, TestZeroQueueSize) {
     _pool->shutdown();
 }
 
-// Test that a thread pool will crash if asked to run its own blocking
-// functions in a pool thread.
-//
-// In a multi-threaded application, TSAN is unsafe to use following a fork().
-// After a fork(), TSAN will:
-// 1. Disable verification, expecting an exec() soon anyway, and
-// 2. Die on future thread creation.
-// For some reason, this test triggers behavior #2. We could disable it with
-// the TSAN option die_after_fork=0, but this can (supposedly) lead to
-// deadlocks, so we'll disable the entire test instead.
 #ifndef THREAD_SANITIZER
 TEST_F(ThreadPoolTest, TestDeadlocks) {
+    std::cout << "Entering TestDeadlocks test case" << std::endl;
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+    std::cout << "Set death test style to threadsafe" << std::endl;
 #ifdef NDEBUG
+    std::cout << "NDEBUG is defined" << std::endl;
     const char* death_msg = "doris::ThreadPool::check_not_pool_thread_unlocked()";
+    std::cout << "Set death_msg for NDEBUG config: " << death_msg << std::endl;
 #elif defined(__APPLE__)
+    std::cout << "__APPLE__ is defined" << std::endl;
     const char* death_msg = "pthread_start";
+    std::cout << "Set death_msg for Apple config: " << death_msg << std::endl;
 #elif defined(__clang__) && defined(USE_LIBCPP)
+    std::cout << "__clang__ && USE_LIBCPP are defined" << std::endl;
     const char* death_msg = "doris::ThreadPool::check_not_pool_thread_unlocked()";
+    std::cout << "Set death_msg for clang+libc++ config: " << death_msg << std::endl;
 #else
+    std::cout << "Using default config" << std::endl;
     const char* death_msg =
             "_ZNSt5_BindIFMN5doris10ThreadPoolEFvvEPS1_EE6__callIvJEJLm0EEEET_OSt5tupleIJDpT0_"
             "EESt12_Index_tupleIJXspT1_EEE";
+    std::cout << "Set death_msg for default config: " << death_msg << std::endl;
 #endif
-    EXPECT_DEATH(
-            {
-                EXPECT_TRUE(rebuild_pool_with_min_max(1, 1).ok());
-                EXPECT_TRUE(_pool->submit_func([pool = _pool.get()]() { pool->shutdown(); }).ok());
-                _pool->wait();
-            },
-            death_msg);
 
+    std::cout << "Starting first EXPECT_DEATH test" << std::endl;
     EXPECT_DEATH(
             {
+                std::cout << "Inside first death test block" << std::endl;
                 EXPECT_TRUE(rebuild_pool_with_min_max(1, 1).ok());
-                EXPECT_TRUE(_pool->submit_func([pool = _pool.get()]() { pool->wait(); }).ok());
+                std::cout << "Rebuilt pool with 1 min, 1 max threads" << std::endl;
+                EXPECT_TRUE(_pool->submit_func([pool = _pool.get()]() {
+                    std::cout << "Inside lambda: calling pool->shutdown()" << std::endl;
+                    pool->shutdown();
+                }).ok());
+                std::cout << "Submitted shutdown task to pool" << std::endl;
                 _pool->wait();
+                std::cout << "Called pool->wait()" << std::endl;
             },
             death_msg);
+    std::cout << "First EXPECT_DEATH test completed" << std::endl;
+
+    std::cout << "Starting second EXPECT_DEATH test" << std::endl;
+    EXPECT_DEATH(
+            {
+                std::cout << "Inside second death test block" << std::endl;
+                EXPECT_TRUE(rebuild_pool_with_min_max(1, 1).ok());
+                std::cout << "Rebuilt pool with 1 min, 1 max threads" << std::endl;
+                EXPECT_TRUE(_pool->submit_func([pool = _pool.get()]() {
+                    std::cout << "Inside lambda: calling pool->wait()" << std::endl;
+                    pool->wait();
+                }).ok());
+                std::cout << "Submitted wait task to pool" << std::endl;
+                _pool->wait();
+                std::cout << "Called pool->wait()" << std::endl;
+            },
+            death_msg);
+    std::cout << "Second EXPECT_DEATH test completed" << std::endl;
+    std::cout << "Exiting TestDeadlocks test case" << std::endl;
 }
 #endif
 
